@@ -35,28 +35,17 @@ def createTeam(firstIndex, secondIndex, isRed,
 							 first = 'RefinedDefensiveReflexAgent', second = 'TimidOffensiveReflexAgent'):
 	
 	
-	#memberone = eval('HybridAgent')(firstIndex)
-	#membertwo = eval('HybridAgent')(secondIndex, memberone)
-	
-	#return [memberone, membertwo]
-	
-
 	def pair_team(first_agent, second_agent):
 		return [eval(first_agent)(firstIndex), eval(second_agent)(secondIndex)]
 
-	#version_one = pair_team('TimidOffensiveReflexAgent', 'RefinedDefensiveReflexAgent')
-
-	memberone = eval('HybridAgent')(firstIndex)
-	membertwo = eval('SensorRefinedDefensiveReflexAgent')(secondIndex, memberone)
-
-	return [memberone, membertwo]
-
-	#version_two = pair_team('SensorRefinedDefensiveReflexAgent', 'HybridAgent')
-	#version_two = pair_team('HybridAgent', 'HybridAgent')
+	def pair_team_with_wrapper(first_agent, second_agent):
+		member_a = eval(first_agent)(firstIndex)
+		member_b = eval(second_agent)(secondIndex, member_a)
+		return [member_a, member_b]
 
 
+	return pair_team_with_wrapper('HybridAgent', 'SensorRefinedDefensiveReflexAgent')
 
-	return version_two
 	
 
 
