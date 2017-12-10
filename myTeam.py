@@ -44,7 +44,7 @@ def createTeam(firstIndex, secondIndex, isRed,
 		return [member_a, member_b]
 
 
-	return pair_team_with_wrapper('HybridAgent', 'SensorRefinedDefensiveReflexAgent')
+	return pair_team_with_wrapper('RoyterenceHybridAgent', 'SensorRefinedDefensiveReflexAgent')
 
 	
 
@@ -54,7 +54,7 @@ def createTeam(firstIndex, secondIndex, isRed,
 ##########
 
 
-class HybridAgent(CaptureAgent):
+class RoyterenceHybridAgent(CaptureAgent):
 
 	def __init__(self, index, teammates = None, timeForComputing=.1):
 		CaptureAgent.__init__(self, index, timeForComputing)
@@ -148,6 +148,26 @@ class HybridAgent(CaptureAgent):
 						allpossible[pos] = 0.0
 		allpossible.normalize()
 		self.beliefs[agent] = allpossible
+	
+
+	def iskill(self, gameState, action):
+		kill = None
+		successor = gameState.generateSuccessor(self.index, action)
+		for enemy in self.opponents:
+			if gameState.getAgentPosition(enemy) is not None:
+				if successor.getAgentPosition(enemy) == gameState.getInitialAgentPosition(enemy):
+					kill = enemy
+		return kill
+
+
+	def checkkill(self, gameState, move):
+		kill = self.iskill(gameState, move)
+		if kill is not None:
+			# reset beliefs for enemies we kill
+			self.beliefs[kill] = util.Counter()
+			self.beliefs[kill][gameState.getInitialAgentPosition(kill)] = 1.0
+
+		self.communicate(self.teammates)
 
 
 	def elapse(self, gameState, agent):
@@ -316,21 +336,23 @@ class HybridAgent(CaptureAgent):
 		self.currentpos = self.currentstate.getPosition()
 		self.distances = gameState.getAgentDistances()
 
+		self.beliefs = self.message
+
 		for enemy in self.opponents:
 			# check if we can observe any opponents and update beliefs accordingly
 			if gameState.getAgentPosition(enemy) is not None:
 				self.beliefs[enemy] = util.Counter()
 				self.beliefs[enemy][gameState.getAgentPosition(enemy)] = 1.0
-			if self.observeEnabled and self.elapseEnabled:
-				self.elapse(gameState, enemy)
-				self.observe(gameState, enemy)
 			else:
-				self.observeEnabled = True
-				self.elapseEnabled = True
+				# elapse time for last agent (if not observable)
+				if enemy == (self.index - 1) % 4:
+					self.elapse(gameState, enemy)
+				# update based on reading for each agent (if not observable)
+				self.observe(gameState, enemy)
 
 		# communicate with the teammate and update beliefs from the new message
-		self.communicate(self.teammates)
-		self.update_belief_from_communication()
+		#self.communicate(self.teammates)
+		#self.update_belief_from_communication()
 		
 		for enemy in self.opponents:
 			opponent_distribution = self.beliefs[enemy]
@@ -387,6 +409,8 @@ class HybridAgent(CaptureAgent):
 					if dist < bestDist:
 						bestAction = action
 						bestDist = dist
+
+				self.checkkill(gameState, bestAction)
 				return bestAction
 
 			else:
@@ -395,6 +419,7 @@ class HybridAgent(CaptureAgent):
 				bestActions = [a for a, v in zip(actions, values) if v == maxValue]
 				bestAction = random.choice(bestActions)
 
+				self.checkkill(gameState, bestAction)
 				return bestAction
 
 
@@ -449,11 +474,12 @@ class HybridAgent(CaptureAgent):
 		return random.choice(actions)
 
 
-class SensorRefinedDefensiveReflexAgent(HybridAgent):
+
+class SensorRefinedDefensiveReflexAgent(RoyterenceHybridAgent):
 
 	def registerInitialState(self, gameState):
 		print "SensorRefinedDefensiveReflexAgent"
-		HybridAgent.registerInitialState(self, gameState)
+		RoyterenceHybridAgent.registerInitialState(self, gameState)
 		self.isOffensive = False
 
 
@@ -530,6 +556,10 @@ class SensorRefinedDefensiveReflexAgent(HybridAgent):
 		self.currentpos = self.currentstate.getPosition()
 		self.distances = gameState.getAgentDistances()
 
+
+		self.beliefs = self.message
+
+		
 		for enemy in self.opponents:
 			# check if we can observe any opponents and update beliefs accordingly
 			if gameState.getAgentPosition(enemy) is not None:
@@ -543,8 +573,8 @@ class SensorRefinedDefensiveReflexAgent(HybridAgent):
 				self.elapseEnabled = True
 
 
-		self.communicate(self.teammates)
-		self.update_belief_from_communication()
+		#self.communicate(self.teammates)
+		#self.update_belief_from_communication()
 		
 		for enemy in self.opponents:
 			opponent_distribution = self.beliefs[enemy]
@@ -566,6 +596,7 @@ class SensorRefinedDefensiveReflexAgent(HybridAgent):
 			bestActions = [a for a, v in zip(actions, values) if v == maxValue]
 			bestAction = random.choice(bestActions)
 
+			self.checkkill(gameState, bestAction)
 			return bestAction
 
 
@@ -591,6 +622,6 @@ class SensorRefinedDefensiveReflexAgent(HybridAgent):
 					bestAction = action
 					bestDist = dist
 
-			
+			self.checkkill(gameState, bestAction)
 			return bestAction
 		
